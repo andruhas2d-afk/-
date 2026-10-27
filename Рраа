@@ -1,0 +1,245 @@
+
+-- ITTI_SCRIPTS | DRAG MENU + ESP + POTATO
+-- LocalScript для собственного проекта Roblox Studio
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local cfg = {Chams=true, Boxes=true, Potato=false, ColorIndex=1}
+local palette = {
+    {"LIME",Color3.fromRGB(80,255,150)},
+    {"RED",Color3.fromRGB(255,65,90)},
+    {"BLUE",Color3.fromRGB(65,155,255)},
+    {"PURPLE",Color3.fromRGB(190,90,255)},
+    {"WHITE",Color3.new(1,1,1)}
+}
+local function getColor()
+    return palette[cfg.ColorIndex][2]
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "itti_scripts"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local bubble = Instance.new("TextButton")
+bubble.Size = UDim2.fromOffset(58,58)
+bubble.Position = UDim2.new(0,16,0.5,0)
+bubble.Text = "N"
+bubble.TextSize = 24
+bubble.Font = Enum.Font.GothamBlack
+bubble.TextColor3 = Color3.new(1,1,1)
+bubble.BackgroundColor3 = Color3.fromRGB(20,105,255)
+bubble.Parent = gui
+Instance.new("UICorner",bubble).CornerRadius = UDim.new(1,0)
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0.9,0,0.72,0)
+panel.Position = UDim2.new(0.05,0,0.14,0)
+panel.BackgroundColor3 = Color3.fromRGB(13,17,31)
+panel.Visible = false
+panel.Active = true
+panel.Parent = gui
+Instance.new("UICorner",panel).CornerRadius = UDim.new(0,18)
+
+local stroke = Instance.new("UIStroke",panel)
+stroke.Color = Color3.fromRGB(60,125,255)
+stroke.Thickness = 2
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,-60,0,48)
+title.Position = UDim2.fromOffset(15,5)
+title.BackgroundTransparency = 1
+title.Text = "itti_scripts  •  DRAG HERE"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 20
+title.Font = Enum.Font.GothamBold
+title.Active = true
+title.Parent = panel
+
+local function button(text,y)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1,-30,0,48)
+    b.Position = UDim2.fromOffset(15,y)
+    b.BackgroundColor3 = Color3.fromRGB(28,40,65)
+    b.TextColor3 = Color3.new(1,1,1)
+    b.TextSize = 15
+    b.Font = Enum.Font.GothamSemibold
+    b.Text = text
+    b.Parent = panel
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,12)
+    return b
+end
+
+local close = button("CLOSE MENU",55)
+local chamsBtn = button("CHAMS: ON",112)
+local boxesBtn = button("BOX ESP: ON",169)
+local colorBtn = button("COLOR: LIME",226)
+local potatoBtn = button("POTATO GRAPHICS: OFF",283)
+
+bubble.Activated:Connect(function()
+    panel.Visible = not panel.Visible
+end)
+close.Activated:Connect(function()
+    panel.Visible = false
+end)
+
+-- Drag menu using title bar
+local dragging, dragStart, startPos = false, nil, nil
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement
+    ) then
+        local delta = input.Position - dragStart
+        panel.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Chams and boxes for characters in your own project
+local function updatePlayer(p)
+    if p == player or not p.Character then return end
+    local character = p.Character
+
+    local h = character:FindFirstChild("ITTI_Chams")
+    if not h then
+        h = Instance.new("Highlight")
+        h.Name = "ITTI_Chams"
+        h.Adornee = character
+        h.Parent = character
+    end
+    h.Enabled = cfg.Chams
+    h.FillColor = getColor()
+    h.OutlineColor = getColor()
+    h.FillTransparency = 0.5
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local box = root:FindFirstChild("ITTI_Box")
+        if not box then
+            box = Instance.new("BoxHandleAdornment")
+            box.Name = "ITTI_Box"
+            box.Adornee = root
+            box.Size = Vector3.new(4,6,2)
+            box.AlwaysOnTop = true
+            box.ZIndex = 5
+            box.Parent = root
+        end
+        box.Visible = cfg.Boxes
+        box.Color3 = getColor()
+    end
+end
+
+chamsBtn.Activated:Connect(function()
+    cfg.Chams = not cfg.Chams
+    chamsBtn.Text = "CHAMS: " .. (cfg.Chams and "ON" or "OFF")
+end)
+boxesBtn.Activated:Connect(function()
+    cfg.Boxes = not cfg.Boxes
+    boxesBtn.Text = "BOX ESP: " .. (cfg.Boxes and "ON" or "OFF")
+end)
+colorBtn.Activated:Connect(function()
+    cfg.ColorIndex = cfg.ColorIndex % #palette + 1
+    colorBtn.Text = "COLOR: " .. palette[cfg.ColorIndex][1]
+end)
+
+-- Potato graphics with restore
+local original, lightOriginal, potatoConnection = {}, {}, nil
+local function remember(obj,prop)
+    original[obj] = original[obj] or {}
+    if original[obj][prop] == nil then
+        local ok,v = pcall(function() return obj[prop] end)
+        if ok then original[obj][prop] = v end
+    end
+end
+local function simplify(obj)
+    if obj:IsA("BasePart") then
+        remember(obj,"Material")
+        remember(obj,"Reflectance")
+        pcall(function()
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+        end)
+    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        remember(obj,"Transparency")
+        pcall(function() obj.Transparency = 1 end)
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail")
+        or obj:IsA("Beam") or obj:IsA("Fire")
+        or obj:IsA("Smoke") or obj:IsA("Sparkles")
+        or obj:IsA("PostEffect") then
+        remember(obj,"Enabled")
+        pcall(function() obj.Enabled = false end)
+    end
+end
+local function setPotato(state)
+    if cfg.Potato == state then return end
+    cfg.Potato = state
+
+    if state then
+        lightOriginal.GlobalShadows = Lighting.GlobalShadows
+        lightOriginal.FogEnd = Lighting.FogEnd
+        lightOriginal.Brightness = Lighting.Brightness
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 1000000
+        Lighting.Brightness = 1
+
+        for _,obj in ipairs(workspace:GetDescendants()) do simplify(obj) end
+        for _,obj in ipairs(Lighting:GetDescendants()) do simplify(obj) end
+        potatoConnection = workspace.DescendantAdded:Connect(function(obj)
+            if cfg.Potato then task.defer(simplify,obj) end
+        end)
+    else
+        if potatoConnection then potatoConnection:Disconnect() end
+        potatoConnection = nil
+        for obj,props in pairs(original) do
+            if obj.Parent then
+                for prop,value in pairs(props) do
+                    pcall(function() obj[prop] = value end)
+                end
+            end
+        end
+        table.clear(original)
+        for prop,value in pairs(lightOriginal) do
+            pcall(function() Lighting[prop] = value end)
+        end
+        table.clear(lightOriginal)
+    end
+    potatoBtn.Text = "POTATO GRAPHICS: " .. (state and "ON" or "OFF")
+end
+
+potatoBtn.Activated:Connect(function()
+    setPotato(not cfg.Potato)
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        for _,p in ipairs(Players:GetPlayers()) do
+            updatePlayer(p)
+        end
+        task.wait(0.5)
+    end
+end)
+
+print("itti_scripts loaded")
